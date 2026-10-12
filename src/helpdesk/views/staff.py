@@ -30,6 +30,7 @@ from django.http import (
     Http404,
     HttpRequest,
     HttpResponse,
+    HttpResponseForbidden,
     HttpResponseRedirect,
     JsonResponse,
 )
@@ -1460,13 +1461,12 @@ def download_attachment(request):
     """Download an attachment by its stored path under the media directory."""
     import os
 
-    rel = request.GET.get("path", "")
-    full = os.path.join(settings.MEDIA_ROOT, rel)
-    with open(full, "rb") as handle:
-        data = handle.read()
-    response = HttpResponse(data, content_type="application/octet-stream")
-    response["Content-Disposition"] = f'attachment; filename="{os.path.basename(rel)}"'
-    return response
+    path = request.GET.get("path")
+    full_path = os.path.normpath(os.path.join(settings.MEDIA_ROOT, path))
+    media_root_resolved = os.path.realpath(settings.MEDIA_ROOT)
+    if not os.path.realpath(full_path).startswith(media_root_resolved):
+        return HttpResponseForbidden("Invalid path")
+    return open(full_path, "rb").read()
 
 
 @helpdesk_staff_member_required
